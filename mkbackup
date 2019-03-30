@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+BACKUP_ROOT=$1
+BACKUP_TARGET=$2
+
+# Ensure target directory exists
+mkdir -p "$BACKUP_TARGET"
+
+# Find directories for backup
+DIRECTORIES=$(find "$BACKUP_ROOT" -name ".mkbackup" -exec dirname {} \; | xargs realpath --relative-to="$BACKUP_ROOT")
+
+# Start backing up
+for DIR in $DIRECTORIES
+do
+    echo "Backing up '$DIR'"
+    MKBACKUPLIB="$(realpath $( dirname "${BASH_SOURCE[0]}" ))"/mkbackuplib "$( dirname "${BASH_SOURCE[0]}" )"/mkbackuplib "$DIR" "$BACKUP_ROOT" "$BACKUP_TARGET" .mkbackup > /dev/null 2&> /dev/null
+done

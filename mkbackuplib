@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+
+# Save parameters
+DIR="$1"
+BACKUP_ROOT_DIR=$(realpath "$2")
+TARGET_ROOT_DIR=$(realpath "$3")
+BACKUP_SCRIPT="$4"
+
+# Make them relative to backed up directory
+BACKUP_DIR=$(realpath "$BACKUP_ROOT_DIR"/"$DIR")
+BACKUP_ROOT_DIR=$(realpath --relative-to="$BACKUP_DIR" "$BACKUP_ROOT_DIR")
+TARGET_ROOT_DIR=$(realpath --relative-to="$BACKUP_DIR" "$TARGET_ROOT_DIR")
+
+# Set up paths
+PREFIX=""
+TARGET="$TARGET_ROOT_DIR"/"$DIR"
+function update_paths {
+    TARGET="$TARGET_ROOT_DIR"/"$PREFIX"/"$DIR"
+}
+
+# Convenience functions
+function prepare_parent {
+    mkdir -p $(dirname "$1")
+}
+
+function prepare_dir {
+    mkdir -p "$1"
+}
+
+function git_archive {
+    DESTINATION=$1
+    FORMAT=$2
+    BRANCH=$3
+    if [[ "$FORMAT" == "" ]]; then
+        FORMAT=zip
+    fi
+    if [[ "$BRANCH" == "" ]]; then
+        BRANCH=HEAD
+    fi
+    git archive --format "$FORMAT" "$BRANCH" > "$DESTINATION"
+}
+
+function git_bundle {
+    DESTINATION=$1
+    git bundle create "$DESTINATION" --all
+}
+
+function self {
+    DESTINATION="$1"
+    FILE="$2"
+    if [[ "$FILE" == "" ]]; then
+        FILE="$BACKUP_SCRIPT"
+    fi
+    cp "$FILE" "$DESTINATION"
+}
+
+function git_project {
+    PROJECT="$1"
+    PREFIX="$2"
+    update_paths
+    prepare_dir "$TARGET"
+    git_archive "$TARGET"/"$PROJECT".zip
+    git_bundle "$TARGET"/"$PROJECT".bundle
+    self "$TARGET"/"$PROJECT".mkbackup
+}
+
+function zip_directory {
+    SOURCE="$1"
+    DESTINATION=$(realpath "$2")
+    CURRENT_DIR="$(pwd)"
+    cd "$SOURCE"
+    zip -r "$DESTINATION" *
+    cd "$CURRENT_DIR"
+}
+
+function subproject {
+    DESTINATION=$(realpath --relative-to="$BACKUP_ROOT_DIR" "$1")
+    MKBACKUPLIB="$MKBACKUPLIB" "$MKBACKUPLIB" "$DESTINATION" "$BACKUP_ROOT_DIR" "$TARGET_ROOT_DIR" "$2"
+}
+
+# Run backup script
+cd "$BACKUP_DIR"
+source "$BACKUP_SCRIPT"
